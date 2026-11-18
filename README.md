@@ -23,8 +23,13 @@ Muse ireng (maskot hitam berkacamata, bertopi).
   lalu render dengan Eevee (setting B7: 960×540, 8 sample, raytracing OFF,
   DOF ON, motion blur ON).
 - `pipeline/plan.json` — 1.500 frame plan animasi (GSAP).
+- `pipeline/plan_intro.json` — 330 frame plan intro.
 - `.github/workflows/render-test.yml` — uji render 120 frame (4 job × 30 frame)
   di runner GitHub Actions.
+- `.github/workflows/render-full.yml` — full run 3.660 frame (20 job paralel);
+  frame di-upload langsung ke Google Drive via rclone + service account
+  (secret `GDRIVE_SA_JSON`, variable `GDRIVE_FOLDER_ID`). Tanpa keduanya,
+  job gagal di langkah upload — lihat header workflow.
 
 ## Cara jalanin uji
 
@@ -35,4 +40,13 @@ frame sebagai artifact.
 
 ## Status uji
 
-- 2026-11-19: uji pertama 120 frame (frame 1–120, film 16:9).
+- 2026-11-19: uji pertama 120 frame (frame 1–120, film 16:9) — SUKSES
+  (run 44389889579, ~24,5 dtk/frame vs ~58 dtk/frame lokal, piksel-identik).
+
+## Full run
+
+Tab **Actions** → workflow **render-full** → **Run workflow**.
+Syarat sebelum trigger: secret `GDRIVE_SA_JSON` (isi JSON service account
+Google Cloud) dan variable `GDRIVE_FOLDER_ID` (ID folder Drive yang sudah
+di-share ke email service account sebagai Editor). 20 job paralel, ~1,5 jam
+wall-time, total ~2,2 GB frame langsung ke Drive (bukan artifact).

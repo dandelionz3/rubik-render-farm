@@ -1,0 +1,271 @@
+name: render-full
+
+# Full run film Rubik Cat — 3.660 frame total (20 job paralel).
+# Dipicu manual dari tab Actions. Repo harus PUBLIK supaya menit Actions gratis.
+#
+# Frame 1-120 film 16:9 SUDAH selesai di uji (run 44389889579, terverifikasi)
+# jadi job film16 di sini mulai dari frame 121. Total baru: 3.540 frame.
+#   film 16:9  121-1500 (1.380 frame, 8 job)
+#   film 9:16    1-1500 (1.500 frame, 8 job)
+#   intro 16:9   1-330  (330 frame, 2 job)
+#   intro 9:16   1-330  (330 frame, 2 job)
+#
+# Upload: tiap job upload frame-nya LANGSUNG ke Google Drive (rclone +
+# service account). JANGAN pakai artifact — total ~2,2 GB melebihi batas
+# gratis 500 MB. Syarat (diatur sekali di repo, sebelum trigger):
+#   - Secret  GDRIVE_SA_JSON    : isi file JSON service account Google Cloud
+#   - Variable GDRIVE_FOLDER_ID : ID folder Drive yang sudah di-share ke
+#                                   email service account (sebagai Editor)
+# Tanpa keduanya job GAGAL di langkah upload dengan pesan yang jelas.
+on:
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # film 16:9 — plan.json, 960x540, lensk 1.00, toff 0 (frame 121-1500)
+          - name: film16-a
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 121
+            end: 293
+          - name: film16-b
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 294
+            end: 466
+          - name: film16-c
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 467
+            end: 639
+          - name: film16-d
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 640
+            end: 812
+          - name: film16-e
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 813
+            end: 985
+          - name: film16-f
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 986
+            end: 1158
+          - name: film16-g
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 1159
+            end: 1331
+          - name: film16-h
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 1332
+            end: 1500
+          # film 9:16 — plan.json, 540x960, lensk 0.62, toff 0 (frame 1-1500)
+          - name: film9-a
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 1
+            end: 188
+          - name: film9-b
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 189
+            end: 376
+          - name: film9-c
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 377
+            end: 564
+          - name: film9-d
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 565
+            end: 752
+          - name: film9-e
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 753
+            end: 940
+          - name: film9-f
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 941
+            end: 1128
+          - name: film9-g
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 1129
+            end: 1316
+          - name: film9-h
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 1317
+            end: 1500
+          # intro 16:9 — plan_intro.json, 960x540, lensk 1.00, toff -330
+          - name: intro16-a
+            plan: pipeline/plan_intro.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: -330
+            start: 1
+            end: 165
+          - name: intro16-b
+            plan: pipeline/plan_intro.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: -330
+            start: 166
+            end: 330
+          # intro 9:16 — plan_intro.json, 540x960, lensk 0.62, toff -330
+          - name: intro9-a
+            plan: pipeline/plan_intro.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: -330
+            start: 1
+            end: 165
+          - name: intro9-b
+            plan: pipeline/plan_intro.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: -330
+            start: 166
+            end: 330
+    env:
+      FS_SAMPLES: "8"
+      FS_RAY: "0"
+      FS_VOL: "1"
+      FS_VOLTILE: "16"
+      FS_DOF: "1"
+      FS_MB: "1"
+      FS_SUB: "1"
+      FS_BEVEL: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Mesa/EGL + DejaVu font + rclone
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1-mesa-dri libglx-mesa0 fonts-dejavu-core rclone
+          ldconfig -p | grep libEGL
+          rclone --version
+
+      - name: Download Blender 4.5.3 LTS
+        run: |
+          curl -L -o blender.tar.xz https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz
+          tar -xf blender.tar.xz
+          ./blender-4.5.3-linux-x64/blender --version
+
+      - name: Render frames
+        run: |
+          START=${{ matrix.start }}
+          END=${{ matrix.end }}
+          EXPECTED=$((END - START + 1))
+          echo "Chunk ${{ matrix.name }}: frames $START-$END ($EXPECTED frames)"
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          S=$(date +%s)
+          # NOTE: keberhasilan dinilai dari FILE FRAME, bukan exit code Blender —
+          # Mesa bisa segfault saat teardown SETELAH semua frame tersimpan.
+          ./blender-4.5.3-linux-x64/blender -b --factory-startup \
+            -P pipeline/animate_fast.py -- "$GITHUB_WORKSPACE/out" \
+            --start $START --end $END --plan ${{ matrix.plan }} \
+            --toff ${{ matrix.toff }} --res ${{ matrix.res_x }} ${{ matrix.res_y }} --lensk ${{ matrix.lensk }} || echo "blender exited rc=$?"
+          E=$(date +%s)
+          N=$(ls "$GITHUB_WORKSPACE/out"/f_*.png 2>/dev/null | wc -l)
+          echo "CHUNK=${{ matrix.name }} FRAMES=$N/$EXPECTED SECS=$((E-S))" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$N" -lt "$EXPECTED" ]; then echo "FAIL: only $N/$EXPECTED frames rendered"; exit 1; fi
+
+      - name: Upload frames to Google Drive
+        env:
+          GDRIVE_SA_JSON: ${{ secrets.GDRIVE_SA_JSON }}
+          GDRIVE_FOLDER_ID: ${{ vars.GDRIVE_FOLDER_ID }}
+          CHUNK: ${{ matrix.name }}
+          EXPECTED: ${{ matrix.end - matrix.start + 1 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GDRIVE_SA_JSON" ]; then
+            echo "ERROR: secret GDRIVE_SA_JSON belum diset di repo — upload Drive tidak bisa jalan."
+            echo "Yang dibutuhkan: service account Google Cloud (JSON key) + folder Drive yang di-share ke email service account."
+            exit 1
+          fi
+          if [ -z "$GDRIVE_FOLDER_ID" ]; then
+            echo "ERROR: variable GDRIVE_FOLDER_ID belum diset di repo."
+            exit 1
+          fi
+          printf '%s' "$GDRIVE_SA_JSON" > "$RUNNER_TEMP/sa.json"
+          chmod 600 "$RUNNER_TEMP/sa.json"
+          cat > "$RUNNER_TEMP/rclone.conf" <<EOF
+          [drive]
+          type = drive
+          scope = drive
+          service_account_file = $RUNNER_TEMP/sa.json
+          root_folder_id = $GDRIVE_FOLDER_ID
+          EOF
+          chmod 600 "$RUNNER_TEMP/rclone.conf"
+          rclone --config "$RUNNER_TEMP/rclone.conf" copy out/ "drive:$CHUNK/" \
+            --include 'f_*.png' --transfers 4 --checkers 8
+          UPLOADED=$(rclone --config "$RUNNER_TEMP/rclone.conf" ls "drive:$CHUNK/" | wc -l)
+          echo "CHUNK=$CHUNK UPLOADED=$UPLOADED/$EXPECTED" | tee -a "$GITHUB_STEP_SUMMARY"
+          rm -f "$RUNNER_TEMP/sa.json" "$RUNNER_TEMP/rclone.conf"
+          if [ "$UPLOADED" -lt "$EXPECTED" ]; then echo "FAIL: uploaded $UPLOADED, expected $EXPECTED"; exit 1; fi
