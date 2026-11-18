@@ -244,9 +244,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CHUNK: ${{ matrix.name }}
-          EXPECTED: ${{ matrix.end - matrix.start + 1 }}
+          START: ${{ matrix.start }}
+          END: ${{ matrix.end }}
         run: |
           set -euo pipefail
+          EXPECTED=$((END - START + 1))
           cd "$GITHUB_WORKSPACE/out"
           zip -q "../${CHUNK}.zip" f_*.png
           cd "$GITHUB_WORKSPACE"
