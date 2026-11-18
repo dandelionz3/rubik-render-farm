@@ -10,13 +10,15 @@ name: render-full
 #   intro 16:9   1-330  (330 frame, 2 job)
 #   intro 9:16   1-330  (330 frame, 2 job)
 #
-# Upload: tiap job upload frame-nya LANGSUNG ke Google Drive (rclone +
-# service account). JANGAN pakai artifact — total ~2,2 GB melebihi batas
-# gratis 500 MB. Syarat (diatur sekali di repo, sebelum trigger):
-#   - Secret  GDRIVE_SA_JSON    : isi file JSON service account Google Cloud
-#   - Variable GDRIVE_FOLDER_ID : ID folder Drive yang sudah di-share ke
-#                                   email service account (sebagai Editor)
-# Tanpa keduanya job GAGAL di langkah upload dengan pesan yang jelas.
+# Upload: tiap job zip frame-nya (satu zip per chunk, ~110 MB — jauh di
+# bawah batas 2 GB per file release) lalu upload sebagai release asset ke
+# release "full-run-20261119" pakai `gh release upload` dengan GITHUB_TOKEN
+# bawaan runner (permissions: contents: write). JANGAN pakai artifact —
+# total ~2,2 GB melebihi batas gratis 500 MB.
+# Release-nya DIBUAT DULU dari luar (sebelum trigger) supaya 20 job tidak
+# berlomba membuat release yang sama:
+#   gh release create full-run-20261119 --title "Full run 3.660 frame" \
+#     --notes "Render penuh film Rubik Cat, 20 chunk paralel."
 on:
   workflow_dispatch:
 
@@ -24,6 +26,8 @@ jobs:
   render:
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -204,12 +208,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Mesa/EGL + DejaVu font + rclone
+      - name: Install Mesa/EGL + DejaVu font + zip
         run: |
           sudo apt-get update
-          sudo apt-get install -y libegl1 libgl1-mesa-dri libglx-mesa0 fonts-dejavu-core rclone
+          sudo apt-get install -y libegl1 libgl1-mesa-dri libglx-mesa0 fonts-dejavu-core zip
           ldconfig -p | grep libEGL
-          rclone --version
+          zip -v | head -2
 
       - name: Download Blender 4.5.3 LTS
         run: |
@@ -236,36 +240,24 @@ jobs:
           echo "CHUNK=${{ matrix.name }} FRAMES=$N/$EXPECTED SECS=$((E-S))" | tee -a "$GITHUB_STEP_SUMMARY"
           if [ "$N" -lt "$EXPECTED" ]; then echo "FAIL: only $N/$EXPECTED frames rendered"; exit 1; fi
 
-      - name: Upload frames to Google Drive
+      - name: Zip + upload chunk to GitHub Release
         env:
-          GDRIVE_SA_JSON: ${{ secrets.GDRIVE_SA_JSON }}
-          GDRIVE_FOLDER_ID: ${{ vars.GDRIVE_FOLDER_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CHUNK: ${{ matrix.name }}
           EXPECTED: ${{ matrix.end - matrix.start + 1 }}
         run: |
           set -euo pipefail
-          if [ -z "$GDRIVE_SA_JSON" ]; then
-            echo "ERROR: secret GDRIVE_SA_JSON belum diset di repo — upload Drive tidak bisa jalan."
-            echo "Yang dibutuhkan: service account Google Cloud (JSON key) + folder Drive yang di-share ke email service account."
-            exit 1
-          fi
-          if [ -z "$GDRIVE_FOLDER_ID" ]; then
-            echo "ERROR: variable GDRIVE_FOLDER_ID belum diset di repo."
-            exit 1
-          fi
-          printf '%s' "$GDRIVE_SA_JSON" > "$RUNNER_TEMP/sa.json"
-          chmod 600 "$RUNNER_TEMP/sa.json"
-          cat > "$RUNNER_TEMP/rclone.conf" <<EOF
-          [drive]
-          type = drive
-          scope = drive
-          service_account_file = $RUNNER_TEMP/sa.json
-          root_folder_id = $GDRIVE_FOLDER_ID
-          EOF
-          chmod 600 "$RUNNER_TEMP/rclone.conf"
-          rclone --config "$RUNNER_TEMP/rclone.conf" copy out/ "drive:$CHUNK/" \
-            --include 'f_*.png' --transfers 4 --checkers 8
-          UPLOADED=$(rclone --config "$RUNNER_TEMP/rclone.conf" ls "drive:$CHUNK/" | wc -l)
-          echo "CHUNK=$CHUNK UPLOADED=$UPLOADED/$EXPECTED" | tee -a "$GITHUB_STEP_SUMMARY"
-          rm -f "$RUNNER_TEMP/sa.json" "$RUNNER_TEMP/rclone.conf"
-          if [ "$UPLOADED" -lt "$EXPECTED" ]; then echo "FAIL: uploaded $UPLOADED, expected $EXPECTED"; exit 1; fi
+          cd "$GITHUB_WORKSPACE/out"
+          zip -q "../${CHUNK}.zip" f_*.png
+          cd "$GITHUB_WORKSPACE"
+          ZIPSIZE=$(stat -c%s "${CHUNK}.zip")
+          ZIPSIZE_MB=$((ZIPSIZE / 1024 / 1024))
+          INZIP=$(unzip -l "${CHUNK}.zip" | grep -c 'f_[0-9]*\.png')
+          echo "CHUNK=$CHUNK ZIP=${ZIPSIZE_MB}MB FILES_IN_ZIP=$INZIP/$EXPECTED" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$ZIPSIZE" -ge 2147483648 ]; then echo "FAIL: zip >= 2 GB ($ZIPSIZE bytes)"; exit 1; fi
+          if [ "$INZIP" -lt "$EXPECTED" ]; then echo "FAIL: zip holds $INZIP, expected $EXPECTED"; exit 1; fi
+          # Release "full-run-20261119" dibuat dulu dari luar sebelum trigger,
+          # jadi 20 job paralel tinggal upload (clobber = timpa kalau re-run).
+          gh release upload full-run-20261119 "${CHUNK}.zip" --clobber
+          gh release view full-run-20261119 --json assets \
+            --jq ".assets[] | select(.name == \"${CHUNK}.zip\") | .name + \" \" + (.size|tostring)"
