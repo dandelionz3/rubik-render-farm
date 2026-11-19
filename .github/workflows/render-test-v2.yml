@@ -1,0 +1,96 @@
+name: render-test-v2
+
+# Uji 120 frame film Rubik Cat dengan setting baru:
+#   - matrix 20 job x 6 frame (bukan 4 x 30) — mengukur KONKURENSI NYATA
+#     repo publik: berapa job yang benar-benar jalan serentak.
+#   - actions/cache untuk Blender 4.5.3 — download sekali, job berikut
+#     pakai cache (mematikan mode gagal download tarball yang 2x menimpa
+#     full run; run pertama semua job cache-miss, itu normal — cache
+#     terisi oleh job pertama yang selesai, run berikutnya cache-hit).
+#   - download Blender pakai retry loop (pola render-missing.yml).
+# Frame SAMA seperti uji pertama (film 16:9 frame 1-120, plan.json,
+# 960x540, lensk 1.00, toff 0) supaya hasilnya bisa dibandingkan
+# piksel-per-piksel dengan test-results/ dan detik/frame-nya.
+# Dipicu manual dari tab Actions. Repo harus PUBLIK supaya menit gratis.
+# Workflow ini TIDAK mengubah render-full.yml yang sudah terbukti.
+on:
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        segment: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    env:
+      FS_SAMPLES: "8"
+      FS_RAY: "0"
+      FS_VOL: "1"
+      FS_VOLTILE: "16"
+      FS_DOF: "1"
+      FS_MB: "1"
+      FS_SUB: "1"
+      FS_BEVEL: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Mesa/EGL + DejaVu font
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1-mesa-dri libglx-mesa0 fonts-dejavu-core
+          ldconfig -p | grep libEGL
+
+      - name: Restore cached Blender
+        id: cache-blender
+        uses: actions/cache@v4
+        with:
+          path: blender-4.5.3-linux-x64
+          key: blender-4.5.3-linux-x64
+
+      - name: Download Blender 4.5.3 LTS (cache miss only, with retries)
+        if: steps.cache-blender.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          for i in 1 2 3; do
+            echo "Download attempt $i"
+            if curl -L --retry 5 --retry-delay 10 --retry-all-errors \
+                -o blender.tar.xz \
+                https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz \
+                && tar -tf blender.tar.xz >/dev/null; then
+              echo "Download OK on attempt $i"
+              break
+            fi
+            echo "Download attempt $i failed, retrying in 30s..."
+            rm -f blender.tar.xz
+            sleep 30
+            if [ "$i" = 3 ]; then echo "FAIL: Blender download failed 3x"; exit 1; fi
+          done
+          tar -xf blender.tar.xz
+          ./blender-4.5.3-linux-x64/blender --version
+
+      - name: Render 6 frames
+        run: |
+          START=$(( (${{ matrix.segment }} - 1) * 6 + 1 ))
+          END=$(( ${{ matrix.segment }} * 6 ))
+          echo "Segment ${{ matrix.segment }}: frames $START-$END (cache-hit=${{ steps.cache-blender.outputs.cache-hit }})"
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          S=$(date +%s)
+          # NOTE: keberhasilan dinilai dari FILE FRAME, bukan exit code Blender —
+          # Mesa bisa segfault saat teardown SETELAH semua frame tersimpan.
+          ./blender-4.5.3-linux-x64/blender -b --factory-startup \
+            -P pipeline/animate_fast.py -- "$GITHUB_WORKSPACE/out" \
+            --start $START --end $END --plan pipeline/plan.json \
+            --toff 0 --res 960 540 --lensk 1.00 || echo "blender exited rc=$?"
+          E=$(date +%s)
+          N=$(ls "$GITHUB_WORKSPACE/out"/f_*.png 2>/dev/null | wc -l)
+          echo "SEGMENT=${{ matrix.segment }} CACHE_HIT=${{ steps.cache-blender.outputs.cache-hit }} FRAMES=$N/6 SECS=$((E-S))" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$N" -lt 6 ]; then echo "FAIL: only $N/6 frames rendered"; exit 1; fi
+
+      - name: Upload frames
+        uses: actions/upload-artifact@v4
+        with:
+          name: frames-v2-seg${{ matrix.segment }}
+          path: out/f_*.png
+          if-no-files-found: error
