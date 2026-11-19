@@ -1,26 +1,34 @@
 name: render-full
 
-# Full run film Rubik Cat — 3.660 frame total (20 job paralel).
+# Full run film — 3.660 frame total (40 job paralel, ~92 frame/job).
 # Dipicu manual dari tab Actions. Repo harus PUBLIK supaya menit Actions gratis.
+#   film 16:9  1-1500 (1.500 frame, 16 job)
+#   film 9:16  1-1500 (1.500 frame, 16 job)
+#   intro 16:9 1-330  (330 frame, 4 job)
+#   intro 9:16 1-330  (330 frame, 4 job)
 #
-# Frame 1-120 film 16:9 SUDAH selesai di uji (run 44389889579, terverifikasi)
-# jadi job film16 di sini mulai dari frame 121. Total baru: 3.540 frame.
-#   film 16:9  121-1500 (1.380 frame, 8 job)
-#   film 9:16    1-1500 (1.500 frame, 8 job)
-#   intro 16:9   1-330  (330 frame, 2 job)
-#   intro 9:16   1-330  (330 frame, 2 job)
+# Setting cepat (terbukti di uji render-test-v2, commit e7d2e12):
+#   - actions/cache untuk Blender 4.5.3 (cache-hit = download ter-skip,
+#     dan mematikan mode gagal download tarball yang 2x menimpa full run
+#     lama 20 job). Konkurensi terukur maks 18 job bersamaan.
+#   Estimasi full run: ~1,2-1,8 jam wall-time, Rp0 (vs ~5 jam di 20 job).
 #
 # Upload: tiap job zip frame-nya (satu zip per chunk, ~110 MB — jauh di
 # bawah batas 2 GB per file release) lalu upload sebagai release asset ke
-# release "full-run-20261119" pakai `gh release upload` dengan GITHUB_TOKEN
-# bawaan runner (permissions: contents: write). JANGAN pakai artifact —
-# total ~2,2 GB melebihi batas gratis 500 MB.
-# Release-nya DIBUAT DULU dari luar (sebelum trigger) supaya 20 job tidak
+# release yang namanya diisi di input `release_tag` pakai `gh release upload`
+# dengan GITHUB_TOKEN bawaan runner (permissions: contents: write).
+# JANGAN pakai artifact — total ~2,2 GB melebihi batas gratis 500 MB.
+# Release-nya DIBUAT DULU dari luar (sebelum trigger) supaya 40 job tidak
 # berlomba membuat release yang sama:
-#   gh release create full-run-20261119 --title "Full run 3.660 frame" \
-#     --notes "Render penuh film Rubik Cat, 20 chunk paralel."
+#   gh release create <tag-baru> --title "Full run <tanggal>" \
+#     --notes "Render penuh film, 40 chunk paralel."
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Nama release GitHub yang SUDAH dibuat dulu dari luar (40 job upload zip chunk ke sini)"
+        required: true
+        type: string
 
 jobs:
   render:
@@ -32,72 +40,136 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # film 16:9 — plan.json, 960x540, lensk 1.00, toff 0 (frame 121-1500)
+          # film 16:9 — plan.json, 960x540, lensk 1.00, toff 0 (frame 1-1500, 16 job)
           - name: film16-a
             plan: pipeline/plan.json
             res_x: 960
             res_y: 540
             lensk: "1.00"
             toff: 0
-            start: 121
-            end: 293
+            start: 1
+            end: 94
           - name: film16-b
             plan: pipeline/plan.json
             res_x: 960
             res_y: 540
             lensk: "1.00"
             toff: 0
-            start: 294
-            end: 466
+            start: 95
+            end: 188
           - name: film16-c
             plan: pipeline/plan.json
             res_x: 960
             res_y: 540
             lensk: "1.00"
             toff: 0
-            start: 467
-            end: 639
+            start: 189
+            end: 282
           - name: film16-d
             plan: pipeline/plan.json
             res_x: 960
             res_y: 540
             lensk: "1.00"
             toff: 0
-            start: 640
-            end: 812
+            start: 283
+            end: 376
           - name: film16-e
             plan: pipeline/plan.json
             res_x: 960
             res_y: 540
             lensk: "1.00"
             toff: 0
-            start: 813
-            end: 985
+            start: 377
+            end: 470
           - name: film16-f
             plan: pipeline/plan.json
             res_x: 960
             res_y: 540
             lensk: "1.00"
             toff: 0
-            start: 986
-            end: 1158
+            start: 471
+            end: 564
           - name: film16-g
             plan: pipeline/plan.json
             res_x: 960
             res_y: 540
             lensk: "1.00"
             toff: 0
-            start: 1159
-            end: 1331
+            start: 565
+            end: 658
           - name: film16-h
             plan: pipeline/plan.json
             res_x: 960
             res_y: 540
             lensk: "1.00"
             toff: 0
-            start: 1332
+            start: 659
+            end: 752
+          - name: film16-i
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 753
+            end: 846
+          - name: film16-j
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 847
+            end: 940
+          - name: film16-k
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 941
+            end: 1034
+          - name: film16-l
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 1035
+            end: 1128
+          - name: film16-m
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 1129
+            end: 1222
+          - name: film16-n
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 1223
+            end: 1316
+          - name: film16-o
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 1317
+            end: 1410
+          - name: film16-p
+            plan: pipeline/plan.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: 0
+            start: 1411
             end: 1500
-          # film 9:16 — plan.json, 540x960, lensk 0.62, toff 0 (frame 1-1500)
+          # film 9:16 — plan.json, 540x960, lensk 0.62, toff 0 (frame 1-1500, 16 job)
           - name: film9-a
             plan: pipeline/plan.json
             res_x: 540
@@ -105,64 +177,128 @@ jobs:
             lensk: "0.62"
             toff: 0
             start: 1
-            end: 188
+            end: 94
           - name: film9-b
             plan: pipeline/plan.json
             res_x: 540
             res_y: 960
             lensk: "0.62"
             toff: 0
-            start: 189
-            end: 376
+            start: 95
+            end: 188
           - name: film9-c
             plan: pipeline/plan.json
             res_x: 540
             res_y: 960
             lensk: "0.62"
             toff: 0
-            start: 377
-            end: 564
+            start: 189
+            end: 282
           - name: film9-d
             plan: pipeline/plan.json
             res_x: 540
             res_y: 960
             lensk: "0.62"
             toff: 0
-            start: 565
-            end: 752
+            start: 283
+            end: 376
           - name: film9-e
             plan: pipeline/plan.json
             res_x: 540
             res_y: 960
             lensk: "0.62"
             toff: 0
-            start: 753
-            end: 940
+            start: 377
+            end: 470
           - name: film9-f
             plan: pipeline/plan.json
             res_x: 540
             res_y: 960
             lensk: "0.62"
             toff: 0
-            start: 941
-            end: 1128
+            start: 471
+            end: 564
           - name: film9-g
             plan: pipeline/plan.json
             res_x: 540
             res_y: 960
             lensk: "0.62"
             toff: 0
-            start: 1129
-            end: 1316
+            start: 565
+            end: 658
           - name: film9-h
             plan: pipeline/plan.json
             res_x: 540
             res_y: 960
             lensk: "0.62"
             toff: 0
+            start: 659
+            end: 752
+          - name: film9-i
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 753
+            end: 846
+          - name: film9-j
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 847
+            end: 940
+          - name: film9-k
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 941
+            end: 1034
+          - name: film9-l
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 1035
+            end: 1128
+          - name: film9-m
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 1129
+            end: 1222
+          - name: film9-n
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 1223
+            end: 1316
+          - name: film9-o
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
             start: 1317
+            end: 1410
+          - name: film9-p
+            plan: pipeline/plan.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: 0
+            start: 1411
             end: 1500
-          # intro 16:9 — plan_intro.json, 960x540, lensk 1.00, toff -330
+          # intro 16:9 — plan_intro.json, 960x540, lensk 1.00, toff -330 (frame 1-330, 4 job)
           - name: intro16-a
             plan: pipeline/plan_intro.json
             res_x: 960
@@ -170,16 +306,32 @@ jobs:
             lensk: "1.00"
             toff: -330
             start: 1
-            end: 165
+            end: 83
           - name: intro16-b
             plan: pipeline/plan_intro.json
             res_x: 960
             res_y: 540
             lensk: "1.00"
             toff: -330
-            start: 166
+            start: 84
+            end: 166
+          - name: intro16-c
+            plan: pipeline/plan_intro.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: -330
+            start: 167
+            end: 249
+          - name: intro16-d
+            plan: pipeline/plan_intro.json
+            res_x: 960
+            res_y: 540
+            lensk: "1.00"
+            toff: -330
+            start: 250
             end: 330
-          # intro 9:16 — plan_intro.json, 540x960, lensk 0.62, toff -330
+          # intro 9:16 — plan_intro.json, 540x960, lensk 0.62, toff -330 (frame 1-330, 4 job)
           - name: intro9-a
             plan: pipeline/plan_intro.json
             res_x: 540
@@ -187,14 +339,30 @@ jobs:
             lensk: "0.62"
             toff: -330
             start: 1
-            end: 165
+            end: 83
           - name: intro9-b
             plan: pipeline/plan_intro.json
             res_x: 540
             res_y: 960
             lensk: "0.62"
             toff: -330
-            start: 166
+            start: 84
+            end: 166
+          - name: intro9-c
+            plan: pipeline/plan_intro.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: -330
+            start: 167
+            end: 249
+          - name: intro9-d
+            plan: pipeline/plan_intro.json
+            res_x: 540
+            res_y: 960
+            lensk: "0.62"
+            toff: -330
+            start: 250
             end: 330
     env:
       FS_SAMPLES: "8"
@@ -215,9 +383,31 @@ jobs:
           ldconfig -p | grep libEGL
           zip -v | head -2
 
-      - name: Download Blender 4.5.3 LTS
+      - name: Restore cached Blender
+        id: cache-blender
+        uses: actions/cache@v4
+        with:
+          path: blender-4.5.3-linux-x64
+          key: blender-4.5.3-linux-x64
+
+      - name: Download Blender 4.5.3 LTS (cache miss only, with retries)
+        if: steps.cache-blender.outputs.cache-hit != 'true'
         run: |
-          curl -L -o blender.tar.xz https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz
+          set -euo pipefail
+          for i in 1 2 3; do
+            echo "Download attempt $i"
+            if curl -L --retry 5 --retry-delay 10 --retry-all-errors \
+                -o blender.tar.xz \
+                https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz \
+                && tar -tf blender.tar.xz >/dev/null; then
+              echo "Download OK on attempt $i"
+              break
+            fi
+            echo "Download attempt $i failed, retrying in 30s..."
+            rm -f blender.tar.xz
+            sleep 30
+            if [ "$i" = 3 ]; then echo "FAIL: Blender download failed 3x"; exit 1; fi
+          done
           tar -xf blender.tar.xz
           ./blender-4.5.3-linux-x64/blender --version
 
@@ -258,8 +448,8 @@ jobs:
           echo "CHUNK=$CHUNK ZIP=${ZIPSIZE_MB}MB FILES_IN_ZIP=$INZIP/$EXPECTED" | tee -a "$GITHUB_STEP_SUMMARY"
           if [ "$ZIPSIZE" -ge 2147483648 ]; then echo "FAIL: zip >= 2 GB ($ZIPSIZE bytes)"; exit 1; fi
           if [ "$INZIP" -lt "$EXPECTED" ]; then echo "FAIL: zip holds $INZIP, expected $EXPECTED"; exit 1; fi
-          # Release "full-run-20261119" dibuat dulu dari luar sebelum trigger,
-          # jadi 20 job paralel tinggal upload (clobber = timpa kalau re-run).
-          gh release upload full-run-20261119 "${CHUNK}.zip" --clobber
-          gh release view full-run-20261119 --json assets \
+          # Release (input release_tag) dibuat dulu dari luar sebelum trigger,
+          # jadi 40 job paralel tinggal upload (clobber = timpa kalau re-run).
+          gh release upload "${{ inputs.release_tag }}" "${CHUNK}.zip" --clobber
+          gh release view "${{ inputs.release_tag }}" --json assets \
             --jq ".assets[] | select(.name == \"${CHUNK}.zip\") | .name + \" \" + (.size|tostring)"
