@@ -1,0 +1,94 @@
+name: render-gta6-full
+
+# Full run film GTA 6 3D — 1296 frame (f0–1295), Eevee, DUA rasio:
+#   9:16  540x960, lensk 0.62
+#   16:9  960x540, lensk 1.00
+# 72 job paralel: 2 rasio x 36 chunk x 36 frame (chunk kontigu, bukan stride).
+# Dipicu manual dari tab Actions. Repo harus PUBLIK supaya menit Actions gratis.
+# Pipeline GTA 6 di subdir pipeline-gta6/ — JANGAN sentuh pipeline/ + workflow Rubik.
+# Pola diambil dari render-gta6-test.yml (run 44731197816, 20/20 sukses) +
+# cache Blender dari render-full.yml (Rubik).
+on:
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        ratio: ["9x16", "16x9"]
+        chunk: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]
+    env:
+      FS_SAMPLES: "8"
+      FS_RAY: "0"
+      FS_VOL: "1"
+      FS_VOLTILE: "16"
+      FS_DOF: "1"
+      FS_MB: "1"
+      FS_SUB: "1"
+      FS_BEVEL: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Mesa/EGL + DejaVu font
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1-mesa-dri libglx-mesa0 fonts-dejavu-core
+          ldconfig -p | grep libEGL
+
+      - name: Restore cached Blender
+        id: cache-blender
+        uses: actions/cache@v4
+        with:
+          path: blender-4.5.3-linux-x64
+          key: blender-4.5.3-linux-x64
+
+      - name: Download Blender 4.5.3 LTS (cache miss only, with retries)
+        if: steps.cache-blender.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          for i in 1 2 3; do
+            echo "Download attempt $i"
+            if curl -L --retry 5 --retry-delay 10 --retry-all-errors \
+                -o blender.tar.xz \
+                https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz \
+                && tar -tf blender.tar.xz >/dev/null; then
+              echo "Download OK on attempt $i"
+              break
+            fi
+            echo "Download attempt $i failed, retrying in 30s..."
+            rm -f blender.tar.xz
+            sleep 30
+            if [ "$i" = 3 ]; then echo "FAIL: Blender download failed 3x"; exit 1; fi
+          done
+          tar -xf blender.tar.xz
+          ./blender-4.5.3-linux-x64/blender --version
+
+      - name: Render 36 frames (Eevee)
+        run: |
+          START=$(( (${{ matrix.chunk }} - 1) * 36 + 1 ))
+          END=$(( START + 35 ))
+          if [ "${{ matrix.ratio }}" = "9x16" ]; then RES_X=540; RES_Y=960; LENSK=0.62; else RES_X=960; RES_Y=540; LENSK=1.00; fi
+          echo "Chunk ${{ matrix.ratio }}-${{ matrix.chunk }}: Blender frames $START-$END (plan f $((START - 1))-$((END - 1))), ${RES_X}x${RES_Y}, lensk $LENSK"
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          S=$(date +%s)
+          # NOTE: keberhasilan dinilai dari FILE FRAME, bukan exit code Blender —
+          # Mesa bisa segfault saat teardown SETELAH semua frame tersimpan.
+          ./blender-4.5.3-linux-x64/blender -b --factory-startup \
+            -P pipeline-gta6/animate_gta6.py -- "$GITHUB_WORKSPACE/out" \
+            --start $START --end $END --plan pipeline-gta6/plan.json \
+            --res $RES_X $RES_Y --lensk $LENSK --engine eevee || echo "blender exited rc=$?"
+          E=$(date +%s)
+          N=$(ls "$GITHUB_WORKSPACE/out"/f_*.png 2>/dev/null | wc -l)
+          echo "CHUNK=${{ matrix.ratio }}-${{ matrix.chunk }} FRAMES=$N/36 SECS=$((E-S))" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$N" -lt 36 ]; then echo "FAIL: only $N/36 frames rendered"; exit 1; fi
+
+      - name: Upload frames
+        uses: actions/upload-artifact@v4
+        with:
+          name: gta6-full-${{ matrix.ratio }}-chunk${{ matrix.chunk }}
+          path: out/f_*.png
+          if-no-files-found: error
+          retention-days: 14
