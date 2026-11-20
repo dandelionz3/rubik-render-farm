@@ -1,0 +1,65 @@
+name: render-gta6-test
+
+# Uji render 120 frame film GTA 6 3D (20 job paralel x 6 frame, Eevee 9:16).
+# 20 chunk tersebar di seluruh film (stride 64 frame) supaya 8 segmen teruji.
+# Dipicu manual dari tab Actions. Repo harus PUBLIK supaya menit Actions gratis.
+# Pipeline GTA 6 di subdir pipeline-gta6/ — JANGAN sentuh pipeline/ + workflow Rubik.
+on:
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    env:
+      FS_SAMPLES: "8"
+      FS_RAY: "0"
+      FS_VOL: "1"
+      FS_VOLTILE: "16"
+      FS_DOF: "1"
+      FS_MB: "1"
+      FS_SUB: "1"
+      FS_BEVEL: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Mesa/EGL + DejaVu font
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1-mesa-dri libglx-mesa0 fonts-dejavu-core
+          ldconfig -p | grep libEGL
+
+      - name: Download Blender 4.5.3 LTS
+        run: |
+          curl -L -o blender.tar.xz https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz
+          tar -xf blender.tar.xz
+          ./blender-4.5.3-linux-x64/blender --version
+
+      - name: Render 6 frames (Eevee 9:16)
+        run: |
+          START=$(( (${{ matrix.chunk }} - 1) * 64 + 1 ))
+          END=$(( START + 5 ))
+          echo "Chunk ${{ matrix.chunk }}: Blender frames $START-$END (plan f $((START - 1))-$((END - 1)))"
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          S=$(date +%s)
+          # NOTE: keberhasilan dinilai dari FILE FRAME, bukan exit code Blender —
+          # Mesa bisa segfault saat teardown SETELAH semua frame tersimpan.
+          ./blender-4.5.3-linux-x64/blender -b --factory-startup \
+            -P pipeline-gta6/animate_gta6.py -- "$GITHUB_WORKSPACE/out" \
+            --start $START --end $END --plan pipeline-gta6/plan.json \
+            --res 540 960 --lensk 0.62 --engine eevee || echo "blender exited rc=$?"
+          E=$(date +%s)
+          N=$(ls "$GITHUB_WORKSPACE/out"/f_*.png 2>/dev/null | wc -l)
+          echo "CHUNK=${{ matrix.chunk }} FRAMES=$N/6 SECS=$((E-S))" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$N" -lt 6 ]; then echo "FAIL: only $N/6 frames rendered"; exit 1; fi
+
+      - name: Upload frames
+        uses: actions/upload-artifact@v4
+        with:
+          name: gta6-frames-chunk${{ matrix.chunk }}
+          path: out/f_*.png
+          if-no-files-found: error
